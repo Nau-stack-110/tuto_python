@@ -1,0 +1,23 @@
+• Sujet 1
+Au départ, il y a n ampoules éteintes. Vous commencez par toutes les allumer. Ensuite, vous éteignez chaque deuxième ampoule.
+Lors du troisième tour, vous inversez l'état de chaque troisième ampoule (vous l'allumez si elle est éteinte, et vous l'éteignez si elle est allumée). Pour le tour i, vous faites de même avec chaque ième ampoule. Et pour le dernier tour, le nième, vous ne touchez qu'à la dernière ampoule.
+Votre tâche est de déterminer combien d'ampoules restent allumées après n tours.
+
+• Sujet 2
+Vous disposez d'un ensemble d'enveloppes représenté par un tableau 2D d'entiers où chaque enveloppe est décrite par sa largeur et sa hauteur. Pour qu'une enveloppe puisse être placée à l'intérieur d'une autre, sa largeur et sa hauteur doivent être strictement supérieures à celles de l'enveloppe extérieure. Vous devez déterminer le nombre maximal d'enveloppes que vous pouvez imbriquer les unes dans les autres sans les faire pivoter.
+
+• Sujet 3
+Une grenouille traverse une rivière. La rivière est divisée en un certain nombre d'unités, et à chaque unité, il peut y avoir ou non une pierre. La grenouille peut sauter sur une pierre, mais elle ne doit pas sauter dans l'eau.
+
+• Sujet 4
+
+
+Étant donné une liste des positions des pierres (en unités) dans l'ordre croissant, déterminez si la grenouille peut traverser la rivière en atterrissant sur la dernière pierre. Initialement, la grenouille est sur la première pierre et suppose que le premier saut doit être de 1 unité.
+
+Si le dernier saut de la grenouille était de k unités, son prochain saut doit être de k - 1, k ou k + 1 unités. La grenouille ne peut sauter que dans la direction avant.
+
+• Sujet 5
+Vous êtes un cambrioleur professionnel planifiant de cambrioler des maisons le long d'une rue. Chaque maison a une certaine somme d'argent cachée. Toutes les maisons à cet endroit sont disposées en cercle. Cela signifie que la première maison est le voisin de la dernière. Pendant ce temps, les maisons adjacentes sont équipées d'un système de sécurité connecté, qui alertera automatiquement la police si deux maisons adjacentes sont cambriolées la même nuit.
+Étant donné un tableau d'entiers nums représentant le montant d'argent de chaque maison, retournez le montant maximum d'argent que vous pouvez voler ce soir sans alerter la police.
+
+

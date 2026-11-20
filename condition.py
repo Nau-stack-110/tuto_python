@@ -1,13 +1,11 @@
 # Exemple simple avec if-else
 age = 18
-
 if age >= 18:
     print("Vous êtes majeur.")
 else:
     print("Vous êtes mineur.")
     
     
-
 # Exemple avec if-elif-else
 note = 75
 
@@ -23,7 +21,6 @@ else:
     print("Grade : F")
     
     
-
 
 # Exemple de conditions imbriquées
 age = 20
