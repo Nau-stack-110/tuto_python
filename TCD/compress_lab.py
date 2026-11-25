@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-COMPRESS-LAB FULL  ·  BWT · RLE · Huffman · Arithmétique · LZ77 · LZ78
+COMPRESS-LAB FULL  ·  BWT · RLE · Huffman · Arithmétique · LZ77 · LZ78 · LZW
 - Pipelines purs (solo) et toutes les combinaisons ordonnées
-  RLE / BWT / LZ77 / LZ78, avec Huffman ou Arithmétique en terminal
+  RLE / BWT / LZ77 / LZ78 / LZW, avec Huffman ou Arithmétique en terminal
 - Choix libre de la source : fichier, stdin, argument, ou texte par défaut
 - Mesure du payload uniquement
 - Démarche détaillée du meilleur pipeline + journal de vérification
@@ -23,7 +23,7 @@ from collections import Counter
 from typing import List, Tuple, Dict, Any
 
 DEFAULT_TEXT = """La compression sans perte réduit la taille d'un texte tout en permettant de le reconstruire exactement.
-Ce banc d'essai compare RLE, BWT, LZ77, LZ78, Huffman et le codage arithmétique, seuls ou combinés."""
+Ce banc d'essai compare RLE, BWT, LZ77, LZ78, LZW, Huffman et le codage arithmétique, seuls ou combinés."""
 
 class Ansi:
     enabled = False
@@ -53,7 +53,7 @@ def tag(kind, msg):
 
 BANNER = r"""
   ┌──────────────────────────────────────────────────────────────────────┐
-  │  COMPRESS-LAB  ·  BWT · RLE · Huffman · Arith · LZ77 · LZ78          │
+  │  COMPRESS-LAB  ·  BWT · RLE · Huffman · Arith · LZ77 · LZ78 · LZW    │
   │  Pipelines purs + mixtes · Source libre · Sans perte                 │
   └──────────────────────────────────────────────────────────────────────┘"""
 
@@ -450,18 +450,83 @@ def lz78_stage_encode(seq: List[Any]):
     return tokens, {}, estimate_lz78_seq_bits(tokens)
 
 
+def lzw_alphabet(seq: List[Any]) -> List[Any]:
+    """Symboles distincts, dans leur ordre d'apparition."""
+    alphabet, seen = [], set()
+    for sym in seq:
+        if sym not in seen:
+            seen.add(sym)
+            alphabet.append(sym)
+    return alphabet
+
+
+def lzw_seq_encode(seq: List[Any]):
+    """LZW générique : dictionnaire indexé à partir de 1."""
+    alphabet = lzw_alphabet(seq)
+    dictionary = {(sym,): idx for idx, sym in enumerate(alphabet, 1)}
+    next_idx, w, codes = len(alphabet) + 1, (), []
+    for sym in seq:
+        wc = w + (sym,)
+        if wc in dictionary:
+            w = wc
+        else:
+            codes.append(dictionary[w])
+            dictionary[wc] = next_idx
+            next_idx += 1
+            w = (sym,)
+    if w:
+        codes.append(dictionary[w])
+    return codes, {"alphabet": alphabet}
+
+
+def lzw_seq_decode(codes: List[int], meta: Dict[str, Any]) -> List[Any]:
+    alphabet = meta["alphabet"]
+    dictionary = {idx: (sym,) for idx, sym in enumerate(alphabet, 1)}
+    next_idx, out, previous = len(alphabet) + 1, [], None
+    for code in codes:
+        if code in dictionary:
+            entry = dictionary[code]
+        elif previous is not None and code == next_idx:
+            entry = previous + (previous[0],)
+        else:
+            raise ValueError(f"code LZW invalide : {code}")
+        out.extend(entry)
+        if previous is not None:
+            dictionary[next_idx] = previous + (entry[0],)
+            next_idx += 1
+        previous = entry
+    return out
+
+
+def estimate_lzw_seq_bits(codes: List[int], alphabet: List[Any]) -> int:
+    if not codes:
+        return 0
+    width = bits_for(max(codes))
+    return len(codes) * width + sum(sym_bits(sym) for sym in alphabet)
+
+
+def lzw_stage_encode(seq: List[Any]):
+    codes, meta = lzw_seq_encode(seq)
+    return codes, meta, estimate_lzw_seq_bits(codes, meta["alphabet"])
+
+
 STAGE_RLE = {"name": "RLE", "enc": rle_seq_encode, "dec": rle_seq_decode}
 STAGE_BWT = {"name": "BWT", "enc": bwt_seq_encode, "dec": bwt_seq_decode}
 STAGE_LZ77 = {"name": "LZ77", "enc": lz77_stage_encode, "dec": lambda s, m: lz77_seq_decode(s)}
 STAGE_LZ78 = {"name": "LZ78", "enc": lz78_stage_encode, "dec": lambda s, m: lz78_seq_decode(s)}
-STAGES = [STAGE_RLE, STAGE_BWT, STAGE_LZ77, STAGE_LZ78]
+STAGE_LZW = {"name": "LZW", "enc": lzw_stage_encode, "dec": lambda s, m: lzw_seq_decode(s, m)}
+STAGES = [STAGE_RLE, STAGE_BWT, STAGE_LZ77, STAGE_LZ78, STAGE_LZW]
+STAGE_BY_NAME = {stage["name"]: stage for stage in STAGES}
+CODER_MAP = {Huffman.label: Huffman, Arith.label: Arith}
 
 
-def run_all_pipelines(text: str, max_stages: int = 4) -> List[Dict[str, Any]]:
-    """Toutes les sous-séquences ordonnées de RLE/BWT/LZ77/LZ78,
+def run_all_pipelines(text: str, max_stages: int = 4,
+                      stages=None) -> List[Dict[str, Any]]:
+    """Toutes les sous-séquences ordonnées des préprocesseurs choisis,
     suivies ou non de Huffman/Arithmétique (codeurs terminaux)."""
     raw_bits = len(text.encode("utf-8")) * 8
     target = list(text)
+    stage_list = list(STAGES if stages is None else stages)
     results = []
     failure_payload = raw_bits * 100 + 1
 
@@ -493,7 +558,7 @@ def run_all_pipelines(text: str, max_stages: int = 4) -> List[Dict[str, Any]]:
         if not names:
             add("UTF-8 brut", raw_bits, True, "référence", names, None)
         else:
-            ok = verify(seq, dec_meta)
+            ok = state["ok"]
             if len(names) == 1:
                 label = "RLE classique (solo)" if names[0] == "RLE" else f"{names[0]} (solo)"
                 add(label, state["plain_bits"], ok, "solo", names, None)
@@ -513,11 +578,12 @@ def run_all_pipelines(text: str, max_stages: int = 4) -> List[Dict[str, Any]]:
 
         if len(names) >= max_stages:
             return
-        for stage in STAGES:
+        for stage in stage_list:
             if stage["name"] in used:
                 continue
             try:
                 out, meta, plain = stage["enc"](seq)
+                step_ok = stage["dec"](out, meta) == seq
             except Exception:
                 continue
             walk({
@@ -525,11 +591,113 @@ def run_all_pipelines(text: str, max_stages: int = 4) -> List[Dict[str, Any]]:
                 "stages": names + [stage["name"]],
                 "dec_meta": dec_meta + [(stage, meta)],
                 "plain_bits": plain,
+                "ok": state["ok"] and step_ok,
             }, used | {stage["name"]})
 
     walk({"seq": target, "stages": [],
-          "dec_meta": [], "plain_bits": raw_bits}, frozenset())
+          "dec_meta": [], "plain_bits": raw_bits, "ok": True}, frozenset())
     return results
+
+
+def parse_stages_arg(spec):
+    """Sélectionne les préprocesseurs autorisés, dans l'ordre canonique."""
+    if not spec:
+        return None
+    names = [part.strip().upper() for part in spec.split(",") if part.strip()]
+    if not names:
+        raise ValueError("liste de préprocesseurs vide")
+    unknown = [name for name in names if name not in STAGE_BY_NAME]
+    if unknown:
+        raise ValueError(f"technique(s) inconnue(s) : {', '.join(unknown)}")
+    return [stage for stage in STAGES if stage["name"] in names]
+
+
+def parse_pipeline_arg(spec):
+    """Valide une chaîne unique, par exemple RLE+LZW+Huffman."""
+    tokens = [part.strip() for part in re.split(r"[+,]", spec) if part.strip()]
+    if not tokens:
+        raise ValueError("chaîne de pipeline vide")
+    chain, seen, coder = [], set(), None
+    for position, token in enumerate(tokens):
+        key = token.lower()
+        stage_name = next((name for name in STAGE_BY_NAME
+                           if name.lower() == key), None)
+        if stage_name is not None:
+            if coder is not None:
+                raise ValueError("le codeur doit être en fin de chaîne")
+            if stage_name in seen:
+                raise ValueError(f"{stage_name} apparaît deux fois")
+            seen.add(stage_name)
+            chain.append(stage_name)
+            continue
+        aliases = {
+            Huffman.label.lower(): Huffman.label,
+            "arith": Arith.label,
+            "arithmetique": Arith.label,
+            "arithmétique": Arith.label,
+        }
+        coder_name = aliases.get(key)
+        if coder_name is None:
+            raise ValueError(f"technique inconnue : {token}")
+        if coder is not None:
+            raise ValueError("un seul codeur terminal autorisé")
+        if position != len(tokens) - 1:
+            raise ValueError("le codeur doit être en dernier")
+        coder = coder_name
+        chain.append(coder_name)
+    return chain
+
+
+def run_selected_pipeline(text: str, chain, raw_bits: int) -> Dict[str, Any]:
+    """Évalue une seule chaîne, sans parcourir toutes les combinaisons."""
+    target = list(text)
+    seq, names, dec_meta = target, [], []
+    plain, coder_name = raw_bits, None
+
+    for token in chain:
+        stage = STAGE_BY_NAME.get(token)
+        if stage is None:
+            coder_name = token
+            break
+        out, meta, bits = stage["enc"](seq)
+        names.append(token)
+        dec_meta.append((stage, meta))
+        seq, plain = out, bits
+
+    coder = CODER_MAP.get(coder_name)
+    if coder is not None:
+        b = coder.enc(seq)
+        try:
+            coder_ok = coder.dec(b) == seq
+        except Exception:
+            coder_ok = False
+        cur = coder.dec(b)
+        for stage, meta in reversed(dec_meta):
+            cur = stage["dec"](cur, meta)
+        payload = b["payload"]
+        ok = coder_ok and cur == target
+    else:
+        cur = seq
+        for stage, meta in reversed(dec_meta):
+            cur = stage["dec"](cur, meta)
+        payload = plain
+        ok = cur == target
+
+    if coder_name is not None:
+        category = "entropie" if not names else "combiné"
+    elif len(names) == 1:
+        category = "solo"
+    else:
+        category = "combiné"
+    return {
+        "label": "+".join(chain),
+        "payload": payload,
+        "ok": ok,
+        "category": category,
+        "stages": names,
+        "coder": coder_name,
+    }
+
 
 def short_value(value, limit=64):
     text = repr(value)
@@ -560,6 +728,12 @@ def _stage_detail(stage):
             ["#", "Position", "Index dict.", "Symbole", "Longueur", "Bits"],
             lz78_token_rows(out),
             ["right", "right", "right", "left", "right", "right"],
+        )
+    if name == "LZW":
+        return (
+            ["#", "Indexe", "Dictionnaire", "Encodage"],
+            lzw_token_rows(stage["input"]),
+            ["right", "right", "left", "right"],
         )
     if name == "RLE":
         return (
@@ -778,6 +952,9 @@ def write_verification_log(path, text, rec, trace, raw_bits, decimals=4):
                 f"({n_lit} littéraux, {len(out) - n_lit} copies)")
         elif name == "LZ78":
             add(f"Sortie              : {len(out)} tokens")
+        elif name == "LZW":
+            add(f"Sortie              : {len(out)} codes")
+            add(f"Alphabet            : {len(stage['meta']['alphabet'])} symboles")
         elif name == "RLE":
             add(f"Sortie              : {len(out) // 2} runs")
         else:
@@ -979,6 +1156,50 @@ def lz78_token_rows(tokens):
     return rows
 
 
+def lzw_encode_steps(seq):
+    """Étapes d'encodage LZW, pour l'affichage du détail."""
+    alphabet = lzw_alphabet(seq)
+    dictionary = {(sym,): idx for idx, sym in enumerate(alphabet, 1)}
+    next_idx = len(alphabet) + 1
+    steps = [{"index": idx, "entry": (sym,), "code": None}
+             for idx, sym in enumerate(alphabet, 1)]
+    codes, w = [], ()
+    for sym in seq:
+        wc = w + (sym,)
+        if wc in dictionary:
+            w = wc
+        else:
+            code = dictionary[w]
+            codes.append(code)
+            dictionary[wc] = next_idx
+            steps.append({"index": next_idx, "entry": wc, "code": code})
+            next_idx += 1
+            w = (sym,)
+    if w:
+        code = dictionary[w]
+        codes.append(code)
+        steps.append({"index": None, "entry": None, "code": code})
+    return codes, steps
+
+
+def lzw_entry_text(entry):
+    if all(isinstance(sym, str) and len(sym) == 1 for sym in entry):
+        return "".join(entry)
+    return "·".join(short_value(sym, 24) for sym in entry)
+
+
+def lzw_token_rows(seq):
+    _, steps = lzw_encode_steps(seq)
+    rows = []
+    for number, step in enumerate(steps, 1):
+        index = "—" if step["index"] is None else str(step["index"])
+        entry = "—" if step["entry"] is None else short_value(
+            lzw_entry_text(step["entry"]), 40)
+        code = "—" if step["code"] is None else str(step["code"])
+        rows.append([str(number), index, entry, code])
+    return rows
+
+
 def rle_token_rows(stream):
     rows = []
     for i in range(0, len(stream), 2):
@@ -1072,6 +1293,19 @@ def stage_summary_rows(stage):
             ["Bits table", f"{table_bits} bits", "2 × bits(index max)"],
             ["Payload LZ78", f"{plain} bits", f"{idx_bits} + {sym_bits_sum} + {table_bits} = {plain} bits"],
         ]
+    if name == "LZW":
+        alphabet = stage["meta"]["alphabet"]
+        width = bits_for(max(out, default=0))
+        code_bits = len(out) * width
+        alpha_bits = sum(sym_bits(sym) for sym in alphabet)
+        return [
+            ["Alphabet", str(len(alphabet)), "symboles distincts"],
+            ["Codes", str(len(out)), "un code par entrée émise"],
+            ["Bits par code", f"{width} bits", "bits(index max)"],
+            ["Bits des codes", f"{code_bits} bits", f"{len(out)} × {width}"],
+            ["Bits alphabet", f"{alpha_bits} bits", "Σ bits(symbole)"],
+            ["Payload LZW", f"{plain} bits", f"{code_bits} + {alpha_bits} = {plain} bits"],
+        ]
     if name == "RLE":
         runs = len(out) // 2
         sym_bits_sum = sum(sym_bits(out[i]) for i in range(0, len(out), 2))
@@ -1094,8 +1328,8 @@ def stage_summary_rows(stage):
 
 def build_trace(text, rec, raw_bits):
     target = list(text)
-    stage_map = {s["name"]: s for s in STAGES}
-    coder_map = {"Huffman": Huffman, "Arithmétique": Arith}
+    stage_map = STAGE_BY_NAME
+    coder_map = CODER_MAP
     seq = target
     current_bits = raw_bits
     dec_meta = []
@@ -1175,7 +1409,7 @@ def load_text(args) -> str:
 
 def main():
     ap = argparse.ArgumentParser(
-        description="Banc d'essai de compression (BWT/RLE/Huffman/Arith/LZ77/LZ78)",
+        description="Banc d'essai de compression (BWT/RLE/Huffman/Arith/LZ77/LZ78/LZW)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Exemples :
@@ -1187,6 +1421,9 @@ Exemples :
   python3 compress_lab.py --solo-only
   python3 compress_lab.py --combined-only
   python3 compress_lab.py --max-stages 2
+  python3 compress_lab.py --stages RLE,LZW --max-stages 2
+  python3 compress_lab.py --pipeline "RLE+LZW+Huffman"
+  python3 compress_lab.py --quick
   python3 compress_lab.py --no-explain
   python3 compress_lab.py --log mon_log.txt
   python3 compress_lab.py --no-log
@@ -1199,8 +1436,20 @@ Exemples :
     ap.add_argument("--no-color", action="store_true")
     ap.add_argument("--solo-only", action="store_true", help="Uniquement les techniques pures")
     ap.add_argument("--combined-only", action="store_true", help="Uniquement les pipelines combinés")
-    ap.add_argument("--max-stages", type=int, default=4, choices=(1, 2, 3, 4),
-                    help="Nombre max de préprocesseurs enchaînés (défaut : 4 = tous les cas)")
+    ap.add_argument("--stages", metavar="LISTE",
+                    help="Préprocesseurs à combiner, séparés par des virgules "
+                         "(ex. RLE,LZW ; défaut : tous)")
+    ap.add_argument("--pipeline", metavar="CHAÎNE",
+                    help="Tester une seule chaîne (ex. RLE+LZW+Huffman)")
+    ap.add_argument("--max-stages", type=int, default=None, choices=(1, 2, 3, 4, 5),
+                    help="Nombre max de préprocesseurs enchaînés "
+                         "(défaut : 4 ; 2 en mode --quick ; 5 = tous)")
+    ap.add_argument("--top", type=int, default=None, metavar="N",
+                    help="N'afficher que les N meilleurs pipelines")
+    ap.add_argument("--show-all", action="store_true",
+                    help="Afficher aussi les pipelines à gain négatif")
+    ap.add_argument("--quick", action="store_true",
+                    help="Mode rapide : 2 étages max, top 15, sans détail ni journal")
     ap.add_argument("--no-explain", action="store_true",
                     help="Ne pas afficher la démarche détaillée du meilleur pipeline")
     ap.add_argument("--no-animation", action="store_true",
@@ -1211,6 +1460,24 @@ Exemples :
     ap.add_argument("--no-log", action="store_true",
                     help="Ne pas écrire le journal de vérification")
     args = ap.parse_args()
+
+    try:
+        selected_stages = parse_stages_arg(args.stages)
+        selected_pipeline = (parse_pipeline_arg(args.pipeline)
+                             if args.pipeline else None)
+    except ValueError as exc:
+        ap.error(str(exc))
+
+    if args.quick:
+        args.no_explain = True
+        args.no_log = True
+        args.no_animation = True
+        if args.top is None:
+            args.top = 15
+    if args.max_stages is None:
+        args.max_stages = 2 if args.quick else 4
+    if args.top is not None and args.top < 1:
+        ap.error("--top doit être un entier ≥ 1")
 
     Ansi.enabled = sys.stdout.isatty() and not args.no_color
     Animate.enabled = Ansi.enabled and not args.no_animation
@@ -1227,36 +1494,57 @@ Exemples :
     src = "fichier" if (args.file or (args.text and os.path.isfile(str(args.text)))) else "argument/stdin/défaut"
     print(tag("*", f"Source : {src}"))
     print(tag("*", f"Texte original : {len(text)} caractères  →  {raw_bytes} octets  ({raw_bits} bits)"))
-    print(tag("*", "Techniques : BWT, RLE, Huffman, Arithmétique, LZ77, LZ78"))
+    active = [stage["name"] for stage in (selected_stages or STAGES)]
+    print(tag("*", f"Préprocesseurs : {', '.join(active)} · "
+                   f"codeurs : Huffman, Arithmétique"))
     print(tag("*", "Tous les pipelines sont vérifiés sans perte (encode → decode)"))
     print(tag("*", "Mode de calcul : payload uniquement"))
 
-    max_stages = 1 if args.solo_only else args.max_stages
-    results = run_all_pipelines(text, max_stages=max_stages)
-    total_combos = len(results)
-    print(tag("*", f"Pipelines évalués : {total_combos} "
-                   f"(séquences ordonnées, Huffman/Arithmétique en terminal)"))
+    if selected_pipeline is not None:
+        results = [run_selected_pipeline(text, selected_pipeline, raw_bits)]
+    else:
+        max_stages = 1 if args.solo_only else args.max_stages
+        results = run_all_pipelines(text, max_stages=max_stages,
+                                    stages=selected_stages)
+        total_combos = len(results)
+        print(tag("*", f"Pipelines évalués : {total_combos} "
+                       f"(séquences ordonnées, Huffman/Arithmétique en terminal)"))
 
-    if args.solo_only:
-        results = [r for r in results
-                   if r["category"] in ("solo", "entropie", "référence")]
-    elif args.combined_only:
-        results = [r for r in results if r["category"] in ("combiné", "entropie", "référence")]
+        if args.solo_only:
+            results = [r for r in results
+                       if r["category"] in ("solo", "entropie", "référence")]
+        elif args.combined_only:
+            results = [r for r in results
+                       if r["category"] in ("combiné", "entropie", "référence")]
 
     def size_of(r):
         return r["payload"]
 
-    candidates = len(results)
-    results = [r for r in results if size_of(r) <= raw_bits]
-    hidden = candidates - len(results)
-    print(tag("*", f"Pipelines affichés : {len(results)} (gain ≥ 0)"
-                   + (f" · {hidden} masqué(s) (gain < 0)" if hidden else "")))
+    if selected_pipeline is not None:
+        tested = results[0]
+        print(tag("*", f"Pipeline demandé : {tested['label']} "
+                       f"({tested['payload']} bits, "
+                       f"{'OK' if tested['ok'] else 'ÉCHEC'})"))
+    elif args.show_all:
+        print(tag("*", f"Pipelines affichés : {len(results)} "
+                       f"(tous, gain < 0 inclus)"))
+    else:
+        candidates = len(results)
+        results = [r for r in results if size_of(r) <= raw_bits]
+        hidden = candidates - len(results)
+        print(tag("*", f"Pipelines affichés : {len(results)} (gain ≥ 0)"
+                       + (f" · {hidden} masqué(s) (gain < 0)" if hidden else "")))
 
     if not results:
         print(tag("!", "Aucun pipeline avec un gain positif ou nul."))
         return
 
     results.sort(key=size_of)
+    evaluated = len(results)
+    if args.top is not None and len(results) > args.top:
+        results = results[:args.top]
+        print(tag("*", f"Affichage limité aux {len(results)} meilleurs "
+                       f"sur {evaluated}."))
 
     rows = []
     for rank, r in enumerate(results, 1):
@@ -1270,15 +1558,18 @@ Exemples :
     headers = ["#", "Pipeline", "Payload (bits)", "Octets", "Gain", "Sans perte"]
     aligns = ["right", "left", "right", "right", "right", "center"]
 
+    scope = ("tous, gain < 0 inclus"
+             if selected_pipeline is not None or args.show_all else "gain ≥ 0")
     render_table(
-        "COMPARATIF DES PIPELINES (payload seul, gain ≥ 0, triés par taille)",
+        f"COMPARATIF DES PIPELINES (payload seul, {scope}, triés par taille)",
         headers, rows, aligns
     )
 
     best = results[0]
     best_size = size_of(best)
     print()
-    print(tag("+", f"Meilleur pipeline : {best['label']}"))
+    prefix = "Pipeline testé" if selected_pipeline is not None else "Meilleur pipeline"
+    print(tag("+", f"{prefix} : {best['label']}"))
     print(tag("+", f"Taille retenue (payload seul) : {best_size} bits ≈ "
                    f"{trunc_dec(best_size, 8, 2)} octets"))
     print(tag("+", f"Gain de compression : {gain_str(raw_bits, best_size, 2)} %"))

@@ -11,6 +11,7 @@ correspondante, puis le résultat, la taille et le taux de réduction.
 | `bwt.py` | BWT | rotations possibles, rotations triées, dernière colonne, index primaire |
 | `lz77.py` | LZ77 | buffer de recherche, buffer d'entrée, token, distance, longueur |
 | `lz78.py` | LZ78 | construction du dictionnaire, tokens, dictionnaire final |
+| `lzw.py` | LZW | encodage : `Indexe, Dictionnaire, Encodage` ; décodage : `Indexe, Dictionnaire, Décodage` ; résumé des bits |
 
 ## Commandes
 
@@ -32,6 +33,9 @@ python3 techniques/lz77.py --window 8 --lookahead 5
 
 python3 techniques/lz78.py
 python3 techniques/lz78.py "ABABABA"
+
+python3 techniques/lzw.py
+python3 techniques/lzw.py "ABABABA"
 ```
 
 Options communes :
