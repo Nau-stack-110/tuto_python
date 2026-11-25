@@ -1,0 +1,1513 @@
+{
+  "projet": "Compression Lab",
+  "langage": "Rust",
+  "algorithmes": [
+    "Delta",
+    "RLE",
+    "LZ77",
+    "Huffman"
+  ],
+  "sans_perte": true,
+  "donnees": [
+    {
+      "id": 0,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 1,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 2,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 3,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 4,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 5,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 6,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 7,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 8,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 9,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 10,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 11,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 12,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 13,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 14,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 15,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 16,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 17,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 18,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 19,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 20,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 21,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 22,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 23,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 24,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 25,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 26,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 27,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 28,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 29,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 30,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 31,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 32,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 33,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 34,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 35,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 36,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 37,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 38,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 39,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 40,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 41,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 42,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 43,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 44,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 45,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 46,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 47,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 48,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 49,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 50,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 51,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 52,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 53,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 54,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 55,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 56,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 57,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 58,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 59,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 60,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 61,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 62,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 63,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 64,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 65,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 66,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 67,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 68,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 69,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 70,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 71,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 72,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 73,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 74,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 75,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 76,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 77,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 78,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 79,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 80,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 81,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 82,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 83,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 84,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 85,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 86,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 87,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 88,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 89,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 90,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 91,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 92,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 93,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 94,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 95,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 96,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 97,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 98,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 99,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 100,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 101,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 102,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 103,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 104,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 105,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 106,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 107,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 108,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 109,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 110,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 111,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 112,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 113,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 114,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 115,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 116,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 117,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 118,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 119,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 120,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 121,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 122,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 123,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 124,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 125,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 126,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 127,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 128,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 129,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 130,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 131,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 132,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 133,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 134,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 135,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 136,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 137,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 138,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 139,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 140,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 141,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 142,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 143,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 144,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 145,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 146,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 147,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 148,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 149,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 150,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 151,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 152,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 153,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 154,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 155,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 156,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 157,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 158,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 159,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 160,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 161,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 162,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 163,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 164,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 165,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 166,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 167,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 168,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 169,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 170,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 171,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 172,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 173,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 174,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 175,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 176,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 177,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 178,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 179,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 180,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 181,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 182,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 183,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 184,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 185,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 186,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 187,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 188,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 189,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 190,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 191,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 192,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 193,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 194,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 195,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 196,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 197,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 198,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 199,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 200,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 201,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 202,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 203,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 204,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 205,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 206,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 207,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 208,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 209,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 210,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 211,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 212,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 213,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 214,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 215,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 216,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 217,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 218,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 219,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 220,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 221,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 222,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 223,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 224,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 225,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 226,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 227,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 228,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 229,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 230,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 231,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 232,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 233,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 234,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 235,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 236,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 237,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 238,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 239,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 240,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 241,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 242,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 243,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 244,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 245,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 246,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 247,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 248,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 249,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 250,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 251,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 252,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 253,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 254,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 255,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 256,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 257,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 258,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 259,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 260,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 261,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 262,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 263,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 264,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 265,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 266,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 267,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 268,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 269,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 270,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 271,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 272,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 273,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 274,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 275,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 276,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 277,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 278,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 279,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 280,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 281,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 282,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 283,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 284,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 285,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 286,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 287,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 288,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 289,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 290,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 291,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 292,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 293,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 294,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 295,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 296,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 297,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    },
+    {
+      "id": 298,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": true
+    },
+    {
+      "id": 299,
+      "texte": "La compression sans perte reconstruit exactement les octets.",
+      "actif": false
+    }
+  ]
+}

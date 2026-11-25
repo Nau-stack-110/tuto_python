@@ -183,13 +183,20 @@ class Huffman:
     def dec(b: Dict[str, Any]) -> List[Any]:
         if not b["table"]:
             return []
-        inv = {c: s for s, c in canonical(b["table"]).items()}
-        out, cur = [], ""
+        # Arbre de décodage : évite de concaténer une chaîne de bits et de
+        # recalculer un hash à chaque bit. Nettement plus rapide sur les tuiles.
+        root: Dict[Any, Any] = {}
+        for sym, code in canonical(b["table"]).items():
+            node = root
+            for ch in code:
+                node = node.setdefault(ch, {})
+            node["#"] = sym
+        out, node = [], root
         for ch in b["bits"]:
-            cur += ch
-            if cur in inv:
-                out.append(inv[cur])
-                cur = ""
+            node = node[ch]
+            if "#" in node:
+                out.append(node["#"])
+                node = root
         return out
 
 class Arith:

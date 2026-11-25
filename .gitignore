@@ -1,0 +1,7 @@
+TCD/image_compress_cours/venv/*
+TCD/image_compres_cours/images/*tif
+TCD/image_compres_cours/texts/*.txt
+TCD/image_compres_cours/texts/*.json
+TCD/image_compres_cours/audios/*.wav
+*.tif
+

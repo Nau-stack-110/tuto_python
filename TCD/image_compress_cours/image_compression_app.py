@@ -2,10 +2,13 @@
 # -*- coding: utf-8 -*-
 
 """
-Laboratoire de compression d'images utilisant les algorithmes de compress_lab.py.
-Placer ce fichier dans le même dossier que compress_lab.py.
+Laboratoire de compression d'images utilisant les algorithmes de compress_lab.py,
+avec des onglets Textes et Audio, et un mode Images par tuiles propulsé par le
+moteur Rust sans perte (Delta, RLE, BWT, LZ77, LZ78, LZW, Huffman, arithmétique).
+Placer ce fichier dans le même dossier que compress_lab.py, text_lab.py,
+rust_image_lab.py et audio_lab.py.
 
-Deux modes :
+Modes pour les images :
   • Chaîne unique   : Delta / RLE / BWT / LZ77 / LZ78 / LZW, suivis (ou non) de Huffman
                       ou de l'Arithmétique (codeur terminal), avec mesures détaillées.
                       Option « tuiles » : compresse l'image ENTIÈRE, sans perte, bloc par bloc.
@@ -13,6 +16,11 @@ Deux modes :
                       Huffman / Arithmétique) sur un échantillon borné, avec
                       recherche guidée et vérification réelle des meilleurs
                       candidats. Le mode exhaustif reste disponible.
+  • Rust tuiles     : compresse les pixels RGB par tuiles avec le moteur Rust,
+                      en choisissant la meilleure chaîne pour chaque tuile.
+
+Onglet Audio : FLAC sans perte pour WAV/AIFF PCM, archivage exact `.rlab` pour
+les formats déjà compressés ou avec perte (MP3/OGG), vérification PCM par hash.
 
 Mesures : gain, RC, temps d'encodage / décodage / total, latence, débit,
           et qualité de reconstruction (MSE, SNR, PSNR, SSIM) avec explications pédagogiques.
@@ -20,7 +28,8 @@ Mesures : gain, RC, temps d'encodage / décodage / total, latence, débit,
 
 from math import perm
 from pathlib import Path
-import pickle
+import shutil
+import subprocess
 import sys
 import time
 
@@ -28,6 +37,10 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 from PIL import Image
+
+import text_lab
+import rust_image_lab
+import audio_lab
 
 # Recherche compress_lab.py dans le dossier du projet et ses dossiers parents.
 for candidate in Path(__file__).resolve().parents:
@@ -71,7 +84,7 @@ LIMITS = {
 }
 
 RESIZE_CHOICES = ["Original", 32, 64, 128, 256, 512, 1024]
-TILE_CHOICES = [16, 32, 64, 128]
+TILE_CHOICES = [32, 64, 128, 256]
 DOWNLOAD_MAX_BYTES = 200_000_000
 
 # Comparatif : on n'a pas besoin de compresser toute l'image pour classer les
@@ -83,9 +96,12 @@ COMPARE_DEFAULT_BEAM = 16
 COMPARE_VERIFY_TOP = 6
 COMPARE_ARITH_VERIFY_MAX = 15_000  # au-delà, on garde l'estimation (codage réel trop lent)
 
-st.set_page_config(page_title="Image Compression Lab", page_icon="🗜️", layout="wide")
-st.title("🗜️ Image Compression Lab")
-st.caption("Laboratoire pédagogique — RLE, BWT, LZ77, LZ78, LZW, Huffman et codage arithmétique")
+st.set_page_config(page_title="Compression Lab", page_icon="🗜️", layout="wide")
+st.title("🗜️ Compression Lab")
+st.caption(
+    "Laboratoire pédagogique — images, textes et audio : Delta, RLE, BWT, LZ77, "
+    "LZ78, LZW, Huffman, codage arithmétique et FLAC sans perte"
+)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -173,6 +189,71 @@ def compute_quality_metrics(original, reconstructed):
         "psnr_db": psnr_db,
         "ssim": ssim_val,
     }
+
+
+def jpeg_pixels_identical(path_a, path_b, chunk_size=1 << 20):
+    """Vérifie que deux JPEG décodent exactement les mêmes pixels RGB.
+
+    Utilise ``djpeg`` en streaming (RAM quasi constante) quand il est
+    disponible, sinon retombe sur un décodage Pillow complet. Le flux PPM
+    contient les dimensions et les pixels : deux flux identiques octet pour
+    octet impliquent des pixels strictement identiques.
+    """
+    if shutil.which("djpeg") is not None:
+        procs = []
+        try:
+            for path in (path_a, path_b):
+                procs.append(subprocess.Popen(
+                    ["djpeg", "-ppm", str(path)],
+                    stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                ))
+
+            def read_exact(stream, size):
+                parts = []
+                remaining = size
+                while remaining > 0:
+                    block = stream.read(remaining)
+                    if not block:
+                        break
+                    parts.append(block)
+                    remaining -= len(block)
+                return b"".join(parts)
+
+            same = True
+            while True:
+                a = read_exact(procs[0].stdout, chunk_size)
+                b = read_exact(procs[1].stdout, chunk_size)
+                if a != b:
+                    same = False
+                    break
+                if not a:
+                    break
+            for proc in procs:
+                if proc.poll() is None:
+                    proc.terminate()
+            codes = [proc.wait() for proc in procs]
+            return same and all(code == 0 for code in codes)
+        except Exception:
+            for proc in procs:
+                try:
+                    proc.kill()
+                except OSError:
+                    pass
+            # En cas d'échec de djpeg, on tente la vérification Pillow.
+        finally:
+            for proc in procs:
+                for stream in (proc.stdout,):
+                    try:
+                        if stream is not None:
+                            stream.close()
+                    except OSError:
+                        pass
+
+    with Image.open(path_a) as a, Image.open(path_b) as b:
+        pixels_a = np.asarray(a.convert("RGB"))
+        pixels_b = np.asarray(b.convert("RGB"))
+    return (pixels_a.shape == pixels_b.shape
+            and np.array_equal(pixels_a, pixels_b))
 
 
 def _mse_and_signal_power(original, reconstructed, target_values=1_000_000):
@@ -314,51 +395,16 @@ def get_coders():
     return {"Huffman": lab.Huffman, "Arithmétique": lab.Arith}
 
 
-def _pack_entropy(name, meta):
-    """Range les métadonnées du codeur dans une forme compacte pour le conteneur .clab.
-
-    • Huffman : la chaîne de '0'/'1' (1 octet par bit) devient de vrais octets. Si les
-      symboles sont des octets (0..255), la table (symbole, longueur) est stockée en
-      deux petits tableaux d'octets au lieu d'une liste de tuples Python.
-    """
-    if name == "Huffman":
-        bits = meta["bits"]
-        n = len(bits)
-        data = int(bits, 2).to_bytes((n + 7) // 8, "big") if n else b""
-        table = meta["table"]
-        compact = all(type(sym) is int and 0 <= sym <= 255 and 0 < length <= 255 for sym, length in table)
-        packed = {"nbits": n, "data": data, "payload": meta["payload"]}
-        if compact:
-            packed["syms"] = bytes(sym for sym, _ in table)
-            packed["lens"] = bytes(length for _, length in table)
-        else:
-            packed["table"] = table
-        return packed
-    return meta
-
-
-def _unpack_entropy(name, packed):
-    if name == "Huffman":
-        n = packed["nbits"]
-        bits = format(int.from_bytes(packed["data"], "big"), f"0{n}b") if n else ""
-        if "syms" in packed:
-            table = list(zip(packed["syms"], packed["lens"]))
-        else:
-            table = packed["table"]
-        return {"table": table, "bits": bits, "payload": packed["payload"]}
-    return packed
-
-
 # ──────────────────────────────────────────────────────────────────────────────
 # Mode « chaîne unique »
 # ──────────────────────────────────────────────────────────────────────────────
 def compress_pixels(pixel_array, selected_stages, entropy_name):
-    """Encode les pixels, sérialise dans un conteneur .clab, puis décode depuis ce
-    conteneur. Chaque phase est chronométrée.
+    """Compresse puis décompresse un bloc pour vérifier qu'il est sans perte.
 
-    La vérification de chaque étape se fait pendant la vraie décompression
-    (on compare ce qui est décodé au flux d'entrée mémorisé de l'étape) : pas de
-    décodage supplémentaire, donc pas de temps perdu.
+    Seul le payload est conservé : les bits produits par le codeur terminal
+    (Huffman), sans table, sans en-tête et sans conteneur pickle. C'est la même
+    notion de taille que dans compress_lab.py. La vérification se fait en
+    mémoire, donc aucun fichier temporaire n'est nécessaire.
     """
     algorithms = get_algorithms()
     coders = get_coders()
@@ -388,6 +434,7 @@ def compress_pixels(pixel_array, selected_stages, entropy_name):
 
     # --- Compression : codeur entropique terminal -----------------------------
     entropy_meta = None
+    payload_data = None
     if entropy_name:
         check_limit(entropy_name, len(stream))
         started = time.perf_counter()
@@ -397,40 +444,33 @@ def compress_pixels(pixel_array, selected_stages, entropy_name):
         payload_bits = int(entropy_meta["payload"])
         rows.append({"name": entropy_name, "before": len(stream), "after": len(stream),
                      "bits": payload_bits, "enc_s": elapsed, "dec_s": 0.0, "ok": None})
+        if entropy_name == "Huffman":
+            n = len(entropy_meta["bits"])
+            payload_data = (int(entropy_meta["bits"], 2).to_bytes((n + 7) // 8, "big")
+                            if n else b"")
+    else:
+        # Sans codeur : le payload est le flux brut, uniquement si ce sont des octets.
+        try:
+            payload_data = bytes(stream)
+        except (TypeError, ValueError):
+            payload_data = None
     final_stream = stream
 
-    # --- Sérialisation du conteneur .clab -------------------------------------
-    started = time.perf_counter()
-    package = {
-        "format": "ImageCompressionLab-1",
-        "shape": tuple(int(x) for x in pixel_array.shape),
-        "stages": encoded_stages,
-        "entropy": entropy_name,
-        "entropy_meta": _pack_entropy(entropy_name, entropy_meta) if entropy_meta else None,
-        "final_stream": None if entropy_meta is not None else final_stream,
-    }
-    blob = pickle.dumps(package, protocol=5)
-    serialize_s = time.perf_counter() - started
-
-    # --- Décompression : repart du conteneur réellement sérialisé -------------
-    started = time.perf_counter()
-    loaded = pickle.loads(blob)
-    deserialize_s = time.perf_counter() - started
-
+    # --- Décompression et vérification, directement en mémoire ----------------
     decode_s = 0.0
-    decoded = loaded["final_stream"]
-    if loaded["entropy"]:
+    decoded = final_stream
+    if entropy_name:
         started = time.perf_counter()
-        decoded = coders[loaded["entropy"]].dec(_unpack_entropy(loaded["entropy"], loaded["entropy_meta"]))
+        decoded = coders[entropy_name].dec(entropy_meta)
         elapsed = time.perf_counter() - started
         decode_s += elapsed
         rows[-1]["dec_s"] = elapsed
         rows[-1]["ok"] = decoded == final_stream
         if not rows[-1]["ok"]:
-            raise ValueError(f"Échec de vérification du décodage {loaded['entropy']}.")
+            raise ValueError(f"Échec de vérification du décodage {entropy_name}.")
 
-    for idx in reversed(range(len(loaded["stages"]))):
-        stage = loaded["stages"][idx]
+    for idx in reversed(range(len(encoded_stages))):
+        stage = encoded_stages[idx]
         started = time.perf_counter()
         decoded = algorithms[stage["name"]]["decode"](decoded, stage["meta"])
         elapsed = time.perf_counter() - started
@@ -443,35 +483,38 @@ def compress_pixels(pixel_array, selected_stages, entropy_name):
     decoded_array = np.asarray(decoded, dtype=np.uint8)
     if decoded_array.size != original.size:
         raise ValueError(f"Taille reconstruite incorrecte : {decoded_array.size} au lieu de {original.size}.")
-    decoded_array = decoded_array.reshape(loaded["shape"])
+    decoded_array = decoded_array.reshape(pixel_array.shape)
     exact = bool(np.array_equal(pixel_array, decoded_array))
 
+    payload_bytes = (len(payload_data) if payload_data is not None
+                     else (payload_bits + 7) // 8)
     return {
         "decoded_array": decoded_array,
         "rows": rows,
         "raw_bits": raw_bits,
         "payload_bits": payload_bits,
+        "payload_bytes": payload_bytes,
+        "payload_data": payload_data,
         "exact": exact,
-        "blob": blob,
-        "blob_size": len(blob),
+        "blob": None,
+        "blob_size": payload_bytes,
         "tiles": None,
-        "compress_s": encode_s + serialize_s,
-        "decompress_s": deserialize_s + decode_s,
+        "compress_s": encode_s,
+        "decompress_s": decode_s,
         "encode_s": encode_s,
         "decode_s": decode_s,
-        "serialize_s": serialize_s,
-        "deserialize_s": deserialize_s,
+        "serialize_s": 0.0,
+        "deserialize_s": 0.0,
     }
 
 
-def compress_tiled(pixel_array, selected_stages, entropy_name, tile, clab_path, progress=None):
-    """Compresse l'image ENTIÈRE, sans perte, bloc par bloc (tuiles tile × tile pixels).
+def compress_tiled(pixel_array, selected_stages, entropy_name, tile, payload_path=None,
+                   payload_limit=None, progress=None):
+    """Compresse l'image ENTIÈRE, sans perte, tuile par tuile.
 
-    Chaque tuile est compressée puis décompressée indépendamment avec compress_pixels() :
-    la mémoire reste bornée et les limites de taille des algorithmes s'appliquent à la
-    tuile, pas à l'image. Les tuiles sont écrites une à une dans le fichier .clab.
-    Contrepartie : les métadonnées (tables de Huffman, alphabets...) sont répétées dans
-    chaque tuile, et les statistiques ne sont plus globales.
+    Seul le payload du codeur terminal est écrit, concaténé, sans table, sans
+    en-tête et sans conteneur pickle : sa taille sur disque est donc exactement
+    celle annoncée dans l'interface. Chaque tuile est vérifiée en mémoire.
     """
     height, width, _ = pixel_array.shape
     n_tiles = -(-height // tile) * -(-width // tile)
@@ -483,11 +526,15 @@ def compress_tiled(pixel_array, selected_stages, entropy_name, tile, clab_path, 
     exact_all, expanded, gain_min, gain_max, done = True, 0, None, None, 0
     started_all = time.perf_counter()
     last_update = 0.0
+    payload_file_bytes = 0
+    payload_file_written = False
+    fh = None
 
-    with open(clab_path, "wb") as fh:
-        pickle.dump({"format": "ImageCompressionLab-tiles-1", "shape": tuple(pixel_array.shape),
-                     "tile": tile, "stages": list(selected_stages), "entropy": entropy_name,
-                     "n_tiles": n_tiles}, fh, protocol=5)
+    if payload_path is not None and entropy_name != "Arithmétique":
+        payload_path.parent.mkdir(parents=True, exist_ok=True)
+        fh = open(payload_path, "wb")
+
+    try:
         for ty in range(0, height, tile):
             for tx in range(0, width, tile):
                 block = pixel_array[ty:ty + tile, tx:tx + tile]
@@ -495,7 +542,25 @@ def compress_tiled(pixel_array, selected_stages, entropy_name, tile, clab_path, 
                 if not r["exact"]:
                     raise ValueError(
                         f"La tuile ({ty}, {tx}) n'a pas été reconstruite exactement.")
-                pickle.dump(((ty, tx), r["blob"]), fh, protocol=5)
+                if fh is not None:
+                    if r["payload_data"] is None:
+                        fh.close()
+                        fh = None
+                    else:
+                        fh.write(r["payload_data"])
+                        payload_file_bytes += len(r["payload_data"])
+                        payload_file_written = True
+                        # Ne pas écrire jusqu'au bout un payload déjà plus gros
+                        # que le fichier original : on arrête et on supprime.
+                        if payload_limit and payload_file_bytes >= payload_limit:
+                            fh.close()
+                            fh = None
+                            payload_file_written = False
+                            payload_file_bytes = 0
+                            try:
+                                payload_path.unlink(missing_ok=True)
+                            except OSError:
+                                pass
 
                 for k in sums:
                     sums[k] += r[k]
@@ -520,21 +585,27 @@ def compress_tiled(pixel_array, selected_stages, entropy_name, tile, clab_path, 
                     last_update = now
                     elapsed = now - started_all
                     progress(done, n_tiles, elapsed, elapsed / done * (n_tiles - done))
+    finally:
+        if fh is not None:
+            fh.close()
 
-    # Toutes les tuiles sont vérifiées exactes : l'image reconstruite est
-    # identique à l'originale. On réutilise le tableau d'origine au lieu d'en
-    # garder une copie complète (plusieurs centaines de Mo sur une grande image).
     if not exact_all:
         raise ValueError("Une ou plusieurs tuiles n'ont pas été reconstruites exactement.")
-    decoded = pixel_array
+    if payload_path is not None and not payload_file_written:
+        payload_path = None
+    payload_bytes = (payload_file_bytes if payload_file_written
+                     else (payload_bits + 7) // 8)
     return {
-        "decoded_array": decoded,
+        "decoded_array": pixel_array,
         "rows": agg_rows or [],
         "raw_bits": raw_bits,
         "payload_bits": payload_bits,
+        "payload_bytes": payload_bytes,
+        "payload_data": None,
+        "payload_path": payload_path if payload_file_written else None,
         "exact": True,
         "blob": None,
-        "blob_size": clab_path.stat().st_size,
+        "blob_size": payload_bytes,
         "tiles": {"size": tile, "count": n_tiles, "gain_min": gain_min,
                   "gain_max": gain_max, "expanded": expanded},
         **sums,
@@ -559,7 +630,7 @@ def benchmark_tile(tile_bytes, shape, stages, entropy_name):
         "per_tile_s": time.perf_counter() - started,
         "raw_bits": res["raw_bits"],
         "payload_bits": res["payload_bits"],
-        "blob_size": res["blob_size"],
+        "payload_bytes": res["payload_bytes"],
         "exact": res["exact"],
     }
 
@@ -587,6 +658,159 @@ def representative_tiles(pixel_array, tile_size, count=3):
     return tiles
 
 
+def render_file_reduction(original_path, original_array, resized, stem, state,
+                          key_prefix="", payload_bytes=None, payload_oversized=False):
+    """Réduction réelle du fichier d'origine : JPEG sans perte ou avec perte.
+
+    `state` est un dictionnaire persistant (résultat ou session_state) qui garde
+    les chemins des fichiers générés entre deux reruns Streamlit.
+    """
+    original_path = Path(original_path)
+    if resized:
+        st.info("L'image testée a été réduite : la comparaison au fichier original "
+                "n'est pas valable. Choisis « Original » pour réduire le vrai fichier.")
+        return
+    if not original_path.is_file():
+        return
+
+    original_file_bytes = original_path.stat().st_size
+    ext = original_path.suffix.lower()
+    is_jpeg = ext in {".jpg", ".jpeg"}
+    st.markdown("#### 📉 Réduire le fichier original (vrai fichier)")
+    if payload_bytes is not None:
+        if payload_oversized:
+            if is_jpeg:
+                st.warning(
+                    f"Le payload pédagogique (**{fmt_bytes(payload_bytes)}**) est plus gros que "
+                    f"ton fichier original (**{fmt_bytes(original_file_bytes)}**) : il n'a pas été "
+                    "conservé. C'est normal : un JPEG est déjà compressé avec perte, alors que "
+                    "la chaîne pédagogique repart des pixels RGB bruts (beaucoup plus gros). "
+                    "Pour obtenir un vrai fichier plus petit, utilise « 🔒 Optimiser le JPEG "
+                    "sans perte » ci-dessous (pixels identiques), ou l'option avec perte."
+                )
+            else:
+                st.warning(
+                    f"Le payload pédagogique (**{fmt_bytes(payload_bytes)}**) est plus gros que "
+                    f"ton fichier original (**{fmt_bytes(original_file_bytes)}**) : il n'a pas été "
+                    "conservé. Ce format est déjà compressé, alors que la chaîne pédagogique "
+                    "repart des pixels RGB bruts. Le payload n'est donc pas un fichier de sortie "
+                    "utilisable tel quel."
+                )
+        else:
+            st.caption(
+                f"Fichier original : **{fmt_bytes(original_file_bytes)}**. "
+                f"Payload pédagogique : **{fmt_bytes(payload_bytes)}**. "
+                "Un fichier image est souvent déjà compressé : le comparer aux pixels bruts "
+                "n'est pas la même chose."
+            )
+
+    if not is_jpeg:
+        st.info(
+            "La réduction guidée ci-dessous est prévue pour les JPEG. Pour un PNG/BMP non "
+            "compressé, un ré-encodage PNG optimisé ou WebP sans perte peut réduire le fichier ; "
+            "pour un TIFF, la conversion en PNG sans perte est souvent nettement plus petite. "
+            "Ces conversions ne sont pas lancées automatiquement pour rester rapides."
+        )
+        return
+
+    opt_path = COMPRESSED_DIR / f"{original_path.stem}_sans_perte_optimise.jpg"
+    st.markdown("**Sans perte : optimiser le JPEG**")
+    st.caption(
+        "`jpegtran` réorganise le codage JPEG sans changer un seul pixel et conserve les "
+        "métadonnées (profil ICC, orientation). Le gain est réel mais limité (souvent 5–15 %), "
+        "car le JPEG est déjà compressé."
+    )
+    if shutil.which("jpegtran") is None:
+        st.info("`jpegtran` n'est pas installé : optimisation JPEG sans perte indisponible.")
+    elif st.button("🔒 Optimiser le JPEG sans perte", key=f"{key_prefix}opt_{stem}"):
+        with st.spinner("Optimisation JPEG sans perte…"):
+            try:
+                opt_path.unlink(missing_ok=True)
+                proc = subprocess.run(
+                    ["jpegtran", "-optimize", "-progressive", "-copy", "all",
+                     "-outfile", str(opt_path), str(original_path)],
+                    capture_output=True, text=True, timeout=300,
+                )
+                if proc.returncode != 0 or not opt_path.exists():
+                    raise RuntimeError(proc.stderr.strip() or "jpegtran a échoué")
+                same = jpeg_pixels_identical(original_path, opt_path)
+                state["opt_path"] = str(opt_path)
+                state["opt_verified"] = bool(same)
+                state["opt_size"] = opt_path.stat().st_size
+            except Exception as exc:
+                st.error(f"Optimisation impossible : {exc}")
+                state.pop("opt_path", None)
+
+    opt_path_saved = Path(state.get("opt_path", ""))
+    if opt_path_saved.is_file():
+        new_size = opt_path_saved.stat().st_size
+        gain_opt = (original_file_bytes - new_size) / original_file_bytes * 100
+        if state.get("opt_verified"):
+            st.success("✅ JPEG optimisé sans perte : pixels strictement identiques.")
+        else:
+            st.warning("Optimisation produite, mais la vérification pixel par pixel n'a pas été faite.")
+        o1, o2 = st.columns(2)
+        o1.metric("Original", f"{original_file_bytes:,} o")
+        o2.metric("JPEG optimisé", f"{new_size:,} o",
+                  delta=f"{gain_opt:.2f} %", help="Gain sans perte, pixels identiques.")
+        if new_size <= DOWNLOAD_MAX_BYTES:
+            st.download_button(
+                "⬇️ Télécharger le JPEG optimisé (sans perte)",
+                data=opt_path_saved.read_bytes(),
+                file_name=opt_path_saved.name, mime="image/jpeg",
+            )
+
+    st.markdown("**Avec perte : atteindre une petite taille**")
+    st.caption(
+        "Pour descendre vers 10 Mo, il faut accepter une perte : le JPEG recode les pixels. "
+        "Les métriques MSE/SSIM/PSNR affichées mesurent cette perte."
+    )
+    quality = st.slider("Qualité JPEG", 40, 95, 85, key=f"{key_prefix}jpeg_q_{stem}")
+    lossy_path = COMPRESSED_DIR / f"{original_path.stem}_avec_perte_q{quality}.jpg"
+    if st.button("📉 Créer le JPEG avec perte", key=f"{key_prefix}lossy_{stem}"):
+        with st.spinner("Encodage JPEG avec perte…"):
+            try:
+                lossy_path.parent.mkdir(parents=True, exist_ok=True)
+                Image.fromarray(original_array).save(
+                    lossy_path, format="JPEG", quality=int(quality),
+                    optimize=True, progressive=True, subsampling=2,
+                )
+                with Image.open(lossy_path) as im:
+                    lossy_pixels = np.asarray(im.convert("RGB"))
+                q = compute_quality_metrics(original_array, lossy_pixels)
+                state["lossy"] = {
+                    "path": str(lossy_path),
+                    "quality": int(quality),
+                    "size": lossy_path.stat().st_size,
+                    "mse": q["mse"], "ssim": q["ssim"],
+                    "snr": q["snr_db"], "psnr": q["psnr_db"],
+                }
+            except Exception as exc:
+                st.error(f"Export JPEG impossible : {exc}")
+                state.pop("lossy", None)
+
+    lossy = state.get("lossy")
+    if lossy and lossy.get("quality") == int(quality) and Path(lossy["path"]).is_file():
+        new_size = Path(lossy["path"]).stat().st_size
+        gain_lossy = (original_file_bytes - new_size) / original_file_bytes * 100
+        st.warning(
+            f"⚠️ **Avec perte** (qualité {quality}) : **{fmt_bytes(new_size)}** "
+            f"au lieu de {fmt_bytes(original_file_bytes)} ({gain_lossy:.1f} % de gain). "
+            "Les pixels ne sont plus identiques."
+        )
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Taille JPEG", f"{new_size:,} o")
+        m2.metric("MSE", f"{lossy['mse']:.4f}")
+        m3.metric("SSIM", f"{lossy['ssim']:.6f}")
+        m4.metric("PSNR", f"{lossy['psnr']:.2f} dB")
+        if new_size <= DOWNLOAD_MAX_BYTES:
+            st.download_button(
+                "⬇️ Télécharger le JPEG avec perte",
+                data=Path(lossy["path"]).read_bytes(),
+                file_name=Path(lossy["path"]).name, mime="image/jpeg",
+            )
+
+
 def render_single(res):
     """Affiche les résultats d'une exécution en chaîne unique."""
     original_array = res["original_array"]
@@ -595,9 +819,8 @@ def render_single(res):
     n_pixels = height * width
     raw_bytes = original_array.nbytes
     payload_bits = res["payload_bits"]
-    payload_bytes = (payload_bits + 7) // 8
+    payload_bytes = int(res.get("payload_bytes") or (payload_bits + 7) // 8)
     ratio = (raw_bytes / payload_bytes) if payload_bytes else 0.0
-    blob_size = res["blob_size"]
 
     # Métriques de qualité (MSE / SNR / PSNR / SSIM)
     quality = compute_quality_metrics(original_array, decoded_array)
@@ -679,82 +902,79 @@ def render_single(res):
     else:
         st.info("Aucun algorithme sélectionné : les pixels sont stockés tels quels.")
 
-    st.subheader("8. Mesures de compression (tailles & gains)")
+    st.subheader("8. Mesures de compression (payload uniquement)")
 
-    # ---- Tailles et gain
+    # ---- Payload seul : même méthode que la console de compress_lab.py -------
+    payload_bytes = int(res.get("payload_bytes") or (payload_bits + 7) // 8)
     saved_payload = raw_bytes - payload_bytes
-    gain_payload = gain_pct(res["raw_bits"], payload_bits)
-    gain_container = (raw_bytes - blob_size) / raw_bytes * 100 if raw_bytes else 0.0
-    saved_container = raw_bytes - blob_size
+    gain_payload = gain_pct(res["raw_bits"], payload_bytes * 8)
+    ratio = raw_bytes / payload_bytes if payload_bytes else 0.0
 
-    st.markdown("#### 📦 Taille des données")
+    st.markdown("#### 📦 Taille du payload")
     st.markdown(
         f"""
 | Notion | Valeur | Explication simple |
 |--------|--------|--------------------|
 | **Pixels RGB bruts** | **{raw_bytes:,} octets** ({fmt_bytes(raw_bytes)}) | Largeur × hauteur × 3 canaux × 1 octet. C’est la référence « non compressée ». |
-| **Payload compressé** | **{payload_bytes:,} octets** ({fmt_bytes(payload_bytes)}) | Taille des *seules données* compressées (estimation bit-exacte). |
-| **Conteneur .clab** | **{blob_size:,} octets** ({fmt_bytes(blob_size)}) | Fichier réel écrit sur disque (payload + tables Huffman/Arith + métadonnées + pickle). |
+| **Payload pédagogique** | **{payload_bytes:,} octets** ({fmt_bytes(payload_bytes)}) | Données produites par la chaîne, sans table ni en-tête : la mesure de `compress_lab.py`. |
 """
     )
 
     a1, a2, a3, a4 = st.columns(4)
     a1.metric("Pixels RGB bruts", f"{raw_bytes:,} o", help="Taille de référence non compressée.")
-    a2.metric("Payload compressé", f"{payload_bytes:,} o",
-              help="Données compressées uniquement (sans tables ni en-têtes).")
+    a2.metric("Payload pédagogique", f"{payload_bytes:,} o",
+              help="Données produites par la chaîne, sans tables ni en-têtes.")
     a3.metric("Gain (payload)", f"{gain_payload:.4f} %",
               delta=f"{saved_payload:+,} o",
-              help="Pourcentage de place gagnée sur le payload par rapport aux pixels bruts.")
+              help="(pixels bruts − payload) / pixels bruts.")
     a4.metric("RC (payload)", f"{ratio:.2f} : 1",
-              help="Rapport de compression = pixels bruts / payload compressé.")
+              help="Rapport de compression = pixels bruts / payload.")
 
-    b1, b2, b3 = st.columns(3)
-    b1.metric("Conteneur .clab réel", f"{blob_size:,} o")
-    b2.metric("Gain (conteneur vs pixels bruts)", f"{gain_container:.4f} %",
-              delta=f"{saved_container:+,} o")
+    b1, b2 = st.columns(2)
+    payload_path = res.get("payload_path")
+    if payload_path is not None and Path(payload_path).is_file():
+        b1.metric("Fichier payload sur disque", f"{Path(payload_path).stat().st_size:,} o",
+                  help="Fichier contenant uniquement les bits du payload, sans en-tête.")
+    else:
+        b1.metric("Fichier payload sur disque", "—",
+                  help="L'Arithmétique produit un code final, et certains flux LZ/BWT "
+                       "ne sont pas des octets : seul le payload calculé est affiché.")
     if res["resized"]:
-        b3.metric("Gain vs fichier original", "—",
+        b2.metric("Gain vs fichier original", "—",
                   help="Non comparable : l'image a été réduite avant le test.")
     else:
         orig_size = res["original_file_size"]
-        gain_vs_file = (orig_size - blob_size) / orig_size * 100 if orig_size else 0.0
-        b3.metric("Gain (conteneur vs fichier original)", f"{gain_vs_file:.4f} %",
-                  delta=f"{orig_size - blob_size:+,} o",
-                  help="Compare le .clab au fichier image d’origine (PNG/JPEG… déjà compressé).")
+        gain_vs_file = (orig_size - payload_bytes) / orig_size * 100 if orig_size else 0.0
+        b2.metric("Gain vs fichier original", f"{gain_vs_file:.4f} %",
+                  delta=f"{orig_size - payload_bytes:+,} o",
+                  help="Compare le payload au fichier image d’origine (PNG/JPEG… déjà compressé).")
 
-    with st.expander("📖 Comprendre les gains et les tailles (débutants)"):
+    # Réduction réelle du fichier d'origine, sans ou avec perte.
+    render_file_reduction(
+        res.get("original_path"), original_array, res["resized"], res["stem"],
+        state=res, key_prefix="res_", payload_bytes=payload_bytes,
+        payload_oversized=res.get("payload_oversized", False),
+    )
+
+    with st.expander("📖 Comprendre la taille affichée (débutants)"):
         st.markdown(
             f"""
-**1. Pixels RGB bruts**  
-C’est la taille « théorique » de l’image non compressée :  
-`largeur × hauteur × 3` octets.  
-Exemple : 512×512 → 786 432 octets.
+**Pixels RGB bruts** : `largeur × hauteur × 3` octets, la référence non compressée.
 
-**2. Payload**  
-Taille des données *après* les algorithmes (Delta, RLE, LZ… + Huffman/Arith).  
-C’est ce que la console de `compress_lab` affiche.  
+**Payload** : uniquement les données produites après Delta/RLE/LZ… et le codeur
+terminal. C'est exactement la taille affichée par `compress_lab.py`.
+On ne compte **ni table de Huffman, ni en-tête, ni métadonnées**.
 Gain payload = `(bruts − payload) / bruts × 100`.
 
-**3. Conteneur .clab**  
-Le fichier réellement écrit. Il contient :
-- le payload,
-- les tables de Huffman (ou paramètres arithmétiques),
-- la forme de l’image, la liste des étapes, etc.,
-- le format pickle (pédagogique, pas un standard industriel).
+Le fichier `.payload` éventuel contient ces octets bruts concaténés. Il n'est pas
+autonome (il faudrait la table pour le décoder), mais sa taille correspond bien
+au gain annoncé.
 
-Le conteneur est **toujours un peu plus gros** que le payload.  
-Si l’écart est très grand (> 15 points de %), les métadonnées pèsent trop
-(tuiles trop petites, ou beaucoup de symboles distincts pour Huffman).
+**Gain vs fichier original** : le PNG/JPEG d'origine est déjà compressé ; cette
+comparaison montre seulement si notre chaîne pédagogique fait mieux qu'un format réel.
 
-**4. Gain vs fichier original**  
-Le fichier PNG/JPEG d’origine est *déjà* compressé.  
-Comparer le .clab à ce fichier montre si notre chaîne pédagogique
-fait mieux ou moins bien qu’un format réel.
-
-**Interprétation rapide de ton résultat actuel :**
-- Gain payload ≈ **{gain_payload:.2f} %**
-- Gain conteneur ≈ **{gain_container:.2f} %**
-- RC ≈ **{ratio:.2f}:1**
+**Résultat actuel** : payload ≈ **{fmt_bytes(payload_bytes)}**, gain
+**{gain_payload:.2f} %**, RC ≈ **{ratio:.2f}:1**.
 """
         )
 
@@ -763,9 +983,9 @@ fait mieux ou moins bien qu’un format réel.
     comp_ms, decomp_ms = res["compress_s"] * 1000, res["decompress_s"] * 1000
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Temps de compression", fmt_ms(comp_ms),
-              help=f"Encodage {fmt_ms(res['encode_s'] * 1000)} + sérialisation {fmt_ms(res['serialize_s'] * 1000)}")
+              help=f"Encodage seul : {fmt_ms(res['encode_s'] * 1000)}")
     c2.metric("Temps de décompression", fmt_ms(decomp_ms),
-              help=f"Décodage {fmt_ms(res['decode_s'] * 1000)} + désérialisation {fmt_ms(res['deserialize_s'] * 1000)}")
+              help=f"Décodage et vérification : {fmt_ms(res['decode_s'] * 1000)}")
     c3.metric("Temps total d'exécution", fmt_ms(res["total_s"] * 1000),
               help="Compression + décompression + vérifications + sauvegarde des fichiers.")
     c4.metric("Débit de compression",
@@ -790,39 +1010,39 @@ fait mieux ou moins bien qu’un format réel.
     if gain_payload < 0:
         st.warning("⚠️ Le payload est plus volumineux que les pixels bruts : cette combinaison "
                    "n'est pas adaptée à cette image (gain négatif).")
-    if gain_container < 0:
-        st.warning("⚠️ Le conteneur .clab est plus volumineux que les pixels bruts.")
-    elif gain_payload - gain_container > 15:
-        st.warning(
-            f"⚠️ Le conteneur réel gagne beaucoup moins que le payload ({gain_container:.1f} % contre "
-            f"{gain_payload:.1f} %) : les tables et métadonnées pèsent lourd. C'est fréquent avec des "
-            "tuiles trop petites, ou quand Huffman code des jetons LZ77/LZ78 (milliers de symboles "
-            "distincts). Essaie des tuiles plus grandes ou la chaîne **Delta → Huffman**."
-        )
 
-    st.caption(
-        "Le **gain (payload)** suit la méthode de la console : taille des seules données compressées, "
-        "sans les métadonnées. Le **conteneur .clab** inclut en plus les tables et métadonnées nécessaires "
-        "à la reconstruction ; il est sérialisé avec pickle pour ce laboratoire pédagogique (ce n'est pas "
-        "un format universel). Sans codeur Huffman/Arithmétique, le flux intermédiaire est stocké sous forme "
-        "d'objets Python, d'où un conteneur nettement plus gros que le payload estimé. "
-        "**N'ouvre jamais un fichier pickle provenant d'une source inconnue.**"
-    )
-
-    st.write(f"📁 Flux compressé enregistré : `{res['clab_path'].relative_to(ROOT)}`")
-    if res["blob"] is not None:
-        st.download_button("⬇️ Télécharger le flux compressé (.clab)", data=res["blob"],
-                           file_name=res["clab_path"].name, mime="application/octet-stream")
-    elif blob_size <= DOWNLOAD_MAX_BYTES:
-        st.download_button("⬇️ Télécharger le flux compressé (.clab)", data=res["clab_path"].read_bytes(),
-                           file_name=res["clab_path"].name, mime="application/octet-stream")
+    payload_path = res.get("payload_path")
+    if res.get("payload_oversized"):
+        st.caption("Payload non conservé sur disque : il est plus gros que le fichier original.")
+    elif payload_path is not None and Path(payload_path).is_file():
+        payload_path = Path(payload_path)
+        st.write(f"📁 Payload enregistré : `{payload_path.relative_to(ROOT)}` "
+                 f"({payload_path.stat().st_size:,} o, sans en-tête).")
+        if payload_path.stat().st_size <= DOWNLOAD_MAX_BYTES:
+            st.download_button("⬇️ Télécharger le payload compressé (.payload)",
+                               data=payload_path.read_bytes(),
+                               file_name=payload_path.name, mime="application/octet-stream")
+        else:
+            st.caption("Payload trop volumineux pour un téléchargement via le navigateur : "
+                       "récupère-le directement à l'emplacement indiqué ci-dessus.")
+    elif res.get("payload_data") is not None:
+        st.download_button("⬇️ Télécharger le payload compressé (.payload)",
+                           data=res["payload_data"],
+                           file_name=f"{res.get('stem', 'image')}_payload.bin",
+                           mime="application/octet-stream")
     else:
-        st.caption("Fichier .clab trop volumineux pour un téléchargement via le navigateur : "
-                   "récupère-le directement à l'emplacement indiqué ci-dessus.")
-    st.write(f"🖼️ Image reconstruite enregistrée : `{res['png_path'].relative_to(ROOT)}`")
-    if res["png_path"].stat().st_size <= DOWNLOAD_MAX_BYTES:
-        st.download_button("⬇️ Télécharger l'image reconstruite", data=res["png_path"].read_bytes(),
-                           file_name=res["png_path"].name, mime="image/png")
+        st.caption("Aucun fichier payload : l'Arithmétique produit un code final, et certains "
+                   "flux LZ/BWT ne sont pas des octets. La taille du payload reste celle affichée.")
+    png_path = res.get("png_path")
+    if png_path is not None and Path(png_path).is_file():
+        st.write(f"🖼️ Image reconstruite enregistrée : `{Path(png_path).relative_to(ROOT)}`")
+        if Path(png_path).stat().st_size <= DOWNLOAD_MAX_BYTES:
+            st.download_button("⬇️ Télécharger l'image reconstruite",
+                               data=Path(png_path).read_bytes(),
+                               file_name=Path(png_path).name, mime="image/png")
+    else:
+        st.caption("Image reconstruite non conservée en PNG : elle serait plus grosse que "
+                   "le fichier original. L'aperçu ci-dessus suffit pour la vérification visuelle.")
 
     st.subheader("9. Vérification pixel par pixel (sans perte)")
     if res["exact"]:
@@ -1149,8 +1369,7 @@ def run_comparison(symbols, stage_names, max_depth, coder_names, progress=None,
     picks = picks[:verify_top]
 
     # Vérifie aussi la meilleure chaîne « compacte » (Delta/RLE sans LZ/BWT) :
-    # c'est elle qui donne le plus petit conteneur en mode tuiles, car les
-    # grandes tables LZ/BWT seraient répétées dans chaque tuile.
+    # c'est la plus rapide et la plus fiable pour le test complet par tuiles.
     tile_tokens = {"BWT", "LZ77", "LZ78", "LZW"}
     compact = [r for r in estimated
                if not any(name in tile_tokens for name in r["_names"])
@@ -1256,9 +1475,8 @@ def render_compare(res):
                 st.caption(f"Meilleure chaîne vérifiée sans perte sur l'échantillon : {vbest['Pipeline']}")
 
     # Recommandation pour le test complet : une chaîne mesurée avec un codeur.
-    # En mode tuiles, on privilégie les alphabets compacts (Delta/RLE) : les
-    # tables LZ/BWT seraient répétées dans chaque tuile et peuvent dominer le
-    # fichier final, même si le payload seul paraît minuscule.
+    # En mode tuiles, on privilégie Delta/RLE + Huffman : bien plus rapide que
+    # LZ/BWT, avec un payload mesuré de façon fiable sur des tuiles photo.
     if len(coded) and best is not None and len(measured):
         tile_tokens = "BWT|LZ77|LZ78|LZW"
         huffman_measured = measured[
@@ -1289,13 +1507,12 @@ def render_compare(res):
                 f"{fmt_ms(recommended['Total (ms)'])} sur l'échantillon."
             )
             if tile_ready:
-                st.caption("Choix orienté tuiles : cette chaîne garde des tables compactes, "
-                           "contrairement aux alphabets LZ/BWT qui seraient répétés dans "
-                           "chaque tuile.")
+                st.caption("Choix rapide en tuiles : Delta/RLE + Huffman évite les chaînes "
+                           "LZ/BWT, beaucoup plus lentes sur une grande image.")
             else:
-                st.caption("Aucune chaîne compacte mesurée : les tables LZ/BWT sont répétées "
-                           "dans chaque tuile et le conteneur final peut être gros. Vérifie "
-                           "l'estimation de taille en mode « Chaîne unique ».")
+                st.caption("Aucune chaîne compacte mesurée : la chaîne choisie peut être "
+                           "lente en tuiles. L'estimation de durée s'affiche en mode "
+                           "« Chaîne unique ».")
             st.button(
                 "⚡ Tester cette chaîne sur l'image entière (tuiles)",
                 on_click=apply_pipeline,
@@ -1332,12 +1549,10 @@ def render_compare(res):
         "« estimée » (le vrai codeur, très coûteux, n'est exécuté que sur les meilleurs candidats). "
         "Encodage/Décodage cumulent toutes les étapes et le codeur terminal quand il est mesuré. "
         "Latence = (encodage + décodage) / nombre de pixels. "
-        "Les lignes « sans entropie » donnent un débit théorique après préprocesseurs : le "
-        "conteneur stocke alors le flux Python brut, plus gros. Pour le test complet, choisis "
-        "une chaîne avec **Huffman** ou **Arithmétique**. "
-        "Ce tableau ne compte que le payload : en mode tuiles, les tables sont répétées dans "
-        "chaque tuile et le conteneur peut être plus gros. L'estimation de taille s'affiche "
-        "en mode « Chaîne unique »."
+        "Les lignes « sans entropie » donnent un débit théorique après préprocesseurs. "
+        "Pour le test complet, choisis une chaîne avec **Huffman** ou **Arithmétique**. "
+        "Comme `compress_lab.py`, ce tableau ne compte que le payload : ni tables, ni "
+        "en-têtes. Le gain réel de l'image entière s'affiche en mode « Chaîne unique »."
     )
 
     top = shown.head(15)
@@ -1358,6 +1573,23 @@ def render_compare(res):
 # ──────────────────────────────────────────────────────────────────────────────
 # Barre latérale
 # ──────────────────────────────────────────────────────────────────────────────
+st.sidebar.header("🧭 Espace")
+data_mode = st.sidebar.radio(
+    "Données à tester",
+    ["🖼️ Images", "📄 Textes", "🎵 Audio"],
+    key="data_mode",
+    help="L'onglet Textes utilise le moteur Rust sans perte (Delta, RLE, BWT, "
+         "LZ77, LZ78, LZW, Huffman et arithmétique). L'onglet Audio utilise FLAC "
+         "pour le PCM sans perte, et l'archivage exact .rlab pour les formats "
+         "déjà compressés ou avec perte.",
+)
+if data_mode == "📄 Textes":
+    text_lab.render_text_lab()
+    st.stop()
+if data_mode == "🎵 Audio":
+    audio_lab.render_audio_lab()
+    st.stop()
+
 st.sidebar.header("⚙️ Configuration")
 st.sidebar.write("Les images doivent être placées dans `images/original/`.")
 
@@ -1405,13 +1637,26 @@ def apply_pipeline(pipeline):
     st.session_state["mode"] = "Chaîne unique"
     st.session_state["chosen_algos"] = [name for name in pipeline.split("+") if name]
     st.session_state["use_tiles"] = True
-    st.session_state["tile_size"] = 64
+    st.session_state["tile_size"] = 128
 
 
 st.sidebar.subheader("Algorithmes")
-mode = st.sidebar.radio("Mode", ["Chaîne unique", "Comparatif automatique"], key="mode")
+mode = st.sidebar.radio(
+    "Mode",
+    ["Chaîne unique", "Comparatif automatique", "🧩 Rust tuiles (adaptatif)"],
+    key="mode",
+    help="Le mode Rust compresse l'image entière par tuiles avec le moteur "
+         "sans perte et choisit la meilleure chaîne pour chaque tuile.",
+)
 
-if mode == "Chaîne unique":
+if mode == "🧩 Rust tuiles (adaptatif)":
+    rust_tile_size, rust_pipeline_spec, rust_pipeline_label = (
+        rust_image_lab.render_sidebar_controls()
+    )
+    use_tiles, tile_size = False, 0
+    selected_stages, entropy_name = [], None
+    config_error = None
+elif mode == "Chaîne unique":
     if "chosen_algos" not in st.session_state:
         st.session_state["chosen_algos"] = ["Delta", "Huffman"]
     chosen_algos = st.sidebar.multiselect(
@@ -1436,17 +1681,23 @@ if mode == "Chaîne unique":
         key="use_tiles",
         help="Découpe l'image en blocs et compresse chacun indépendamment : permet de traiter "
              "une grande image SANS PERTE malgré les limites des algorithmes en Python pur. "
-             "Les métadonnées sont répétées dans chaque tuile.",
+             "Seul le payload de chaque tuile est compté.",
     )
-    tile_size = TILE_CHOICES[2]
+    tile_size = 128
     if use_tiles:
-        if "tile_size" not in st.session_state:
-            st.session_state["tile_size"] = 64
+        # Ne proposer que les tuiles qui respectent la limite la plus stricte
+        # des algorithmes sélectionnés (ex. Arithmétique : 30 000 symboles max).
+        limits = [LIMITS[name] for name in selected_stages + ([entropy_name] if entropy_name else [])
+                  if LIMITS.get(name)]
+        max_values = min(limits) if limits else MAX_SYMBOLS
+        valid_tiles = [t for t in TILE_CHOICES if t * t * 3 <= max_values] or [16]
+        if st.session_state.get("tile_size") not in valid_tiles:
+            st.session_state["tile_size"] = max(t for t in valid_tiles if t <= 128)
         tile_size = st.sidebar.select_slider(
-            "Taille des tuiles (px)", options=TILE_CHOICES, key="tile_size")
+            "Taille des tuiles (px)", options=valid_tiles, key="tile_size")
         st.sidebar.caption(
             f"Une tuile de {tile_size}×{tile_size} contient {tile_size * tile_size * 3:,} valeurs "
-            "(BWT : 64 000 max, Arithmétique : 30 000 max)."
+            f"(limite la plus stricte : {max_values:,})."
         )
         if entropy_name == "Arithmétique":
             st.sidebar.warning(
@@ -1532,9 +1783,34 @@ with right:
             "(Réduire l'image permet seulement de tester vite, mais n'est pas sans perte.)"
         )
 
+with st.expander("📉 Réduire le fichier original (sans exécuter la chaîne)", expanded=True):
+    file_state = st.session_state.setdefault(f"file_reduction_{selected_path.stem}", {})
+    render_file_reduction(
+        selected_path, original_array, resized, selected_path.stem,
+        state=file_state, key_prefix="top_",
+    )
+
 st.subheader("2. Matrice des pixels originaux")
 st.caption(f"Extrait {matrix_limit} × {matrix_limit} pixels — chaque pixel contient [R, G, B].")
 stretch(st.dataframe, original_array[:matrix_limit, :matrix_limit, :].tolist())
+
+if mode == "🧩 Rust tuiles (adaptatif)":
+    rust_image_lab.render_rust_tiles(
+        original_array,
+        selected_path,
+        original_file_size,
+        resized,
+        preview_array,
+        rust_tile_size,
+        rust_pipeline_spec,
+        rust_pipeline_label,
+    )
+    st.divider()
+    st.caption(
+        "Compression Lab — mode Rust par tuiles : choix adaptatif par tuile, "
+        "vérification sans perte et comparaison au fichier source."
+    )
+    st.stop()
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Compression
@@ -1552,7 +1828,6 @@ if mode == "Chaîne unique":
         st.write(f"Mode tuiles : **{n_tiles_est:,} {tile_word}** de {tile_size} × {tile_size} pixels "
                  "(image entière, sans perte).")
         if chain:
-            raw_bytes_est = int(original_array.nbytes)
             candidates, errors, seen = [], [], set()
 
             def add_candidate(stages, coder, label, pipeline):
@@ -1574,18 +1849,13 @@ if mode == "Chaîne unique":
                 def avg(name):
                     return sum(b[name] for b in benches) / n
 
-                payload_tile = (round(avg("payload_bits")) + 7) // 8
-                blob_tile = avg("blob_size")
-                meta_tile = max(blob_tile - payload_tile, 0)
                 candidates.append({
                     "label": label,
                     "pipeline": pipeline,
                     "current": pipeline == "+".join(chain),
                     "per_tile_s": avg("per_tile_s"),
                     "gain": gain_pct(avg("raw_bits"), avg("payload_bits")),
-                    "payload": payload_tile * n_tiles_est,
-                    "container": blob_tile * n_tiles_est,
-                    "meta_pct": (100.0 * meta_tile / blob_tile if blob_tile else 0.0),
+                    "payload": round(avg("payload_bytes")) * n_tiles_est,
                 })
 
             add_candidate(selected_stages, entropy_name, " → ".join(chain),
@@ -1595,66 +1865,58 @@ if mode == "Chaîne unique":
                           "Delta → RLE → Huffman", "Delta+RLE+Huffman")
 
             if candidates:
+                # On privilégie Delta/RLE + Huffman : payload mesuré de façon fiable
+                # et bien plus rapide que LZ/BWT ou Arithmétique sur une grande image.
                 fast_candidates = [c for c in candidates
                                    if not c["pipeline"].endswith("Arithmétique")]
-                best_container = min(fast_candidates or candidates,
-                                     key=lambda c: c["container"])
+                compact_candidates = [
+                    c for c in fast_candidates
+                    if not any(token in c["pipeline"] for token in ("BWT", "LZ77", "LZ78", "LZW"))]
+                pool = compact_candidates or fast_candidates or candidates
+                recommended = min(pool, key=lambda c: (c["payload"], c["per_tile_s"]))
+                fastest = min(candidates, key=lambda c: c["per_tile_s"])
                 rows = []
-                for c in sorted(candidates, key=lambda c: c["container"]):
+                for c in sorted(candidates, key=lambda c: c["payload"]):
                     status = []
                     if c["current"]:
                         status.append("actuelle")
-                    if c is best_container:
+                    if c is recommended:
                         status.append("recommandée")
+                    if c is fastest:
+                        status.append("plus rapide")
                     rows.append({
                         "Chaîne": c["label"],
                         "Gain tuile (%)": f"{c['gain']:.1f}",
                         "Payload estimé": fmt_bytes(c["payload"]),
-                        "Métadonnées": f"{c['meta_pct']:.0f} %",
-                        "Conteneur estimé": fmt_bytes(c["container"]),
                         "Durée estimée": fmt_duration(c["per_tile_s"] * n_tiles_est),
                         "Statut": " · ".join(status) or "—",
                     })
-                st.caption("Estimation d'après quelques tuiles réelles réparties dans "
-                           f"l'image, pour {n_tiles_est:,} {tile_word}. Le conteneur inclut "
-                           "les tables répétées dans chaque tuile.")
+                st.caption("Estimation du payload seul, d'après quelques tuiles réelles "
+                           f"réparties dans l'image, pour {n_tiles_est:,} {tile_word}.")
                 stretch(st.dataframe, pd.DataFrame(rows), hide_index=True)
 
                 current = next((c for c in candidates if c["current"]), None)
                 if current is not None:
-                    if current["container"] > raw_bytes_est:
-                        st.error(
-                            f"Conteneur estimé de la chaîne actuelle : "
-                            f"**≈ {fmt_bytes(current['container'])}**, soit plus que les "
-                            f"pixels bruts ({fmt_bytes(raw_bytes_est)}). Les métadonnées "
-                            f"représentent {current['meta_pct']:.0f} % du fichier. "
-                            "Préfère une chaîne compacte comme Delta → RLE → Huffman.")
-                    elif current["meta_pct"] >= 50:
-                        st.warning(
-                            f"Les métadonnées représentent {current['meta_pct']:.0f} % du "
-                            "conteneur : les tables par tuile dominent. Une chaîne sans "
-                            "LZ/BWT produira un fichier plus petit.")
-                    elif (best_container["pipeline"] != current["pipeline"]
-                          and best_container["container"] < current["container"] * 0.85):
-                        st.info(
-                            f"Pour un conteneur plus petit, essaie "
-                            f"**{best_container['label']}** : "
-                            f"≈ {fmt_bytes(best_container['container'])} au lieu de "
-                            f"≈ {fmt_bytes(current['container'])}.")
-
                     est_current_s = current["per_tile_s"] * n_tiles_est
                     if est_current_s > 300:
                         st.warning(
                             f"Durée estimée de la chaîne actuelle : "
                             f"**≈ {fmt_duration(est_current_s)}**. Pour aller plus vite, "
-                            "choisis une chaîne Huffman compacte : Delta → Huffman ou "
-                            "Delta → RLE → Huffman.")
+                            f"essaie **{recommended['label']}** "
+                            f"(≈ {fmt_duration(recommended['per_tile_s'] * n_tiles_est)}).")
+                    elif (recommended["pipeline"] != current["pipeline"]
+                          and recommended["payload"] < current["payload"] * 0.98):
+                        st.info(
+                            f"**{recommended['label']}** donne un payload plus petit "
+                            f"(≈ {fmt_bytes(recommended['payload'])} au lieu de "
+                            f"≈ {fmt_bytes(current['payload'])}) pour une durée estimée "
+                            f"de {fmt_duration(recommended['per_tile_s'] * n_tiles_est)}.")
 
-                if best_container["pipeline"] != "+".join(chain):
+                if recommended["pipeline"] != "+".join(chain):
                     st.button(
-                        f"Appliquer {best_container['label']}",
+                        f"Appliquer {recommended['label']}",
                         on_click=apply_pipeline,
-                        args=(best_container["pipeline"],),
+                        args=(recommended["pipeline"],),
                         help="Sélectionne cette chaîne dans la barre latérale.",
                     )
             for label, error in errors:
@@ -1675,6 +1937,14 @@ else:
         f"Comparatif sur un échantillon de **≤ {n_sample_max:,} valeurs** "
         f"({pct_text} de l'image), réparti en blocs. "
         "La compression finale (sans perte) se fait sur toute l'image en mode « Chaîne unique »."
+    )
+
+if (mode == "Chaîne unique" and not resized
+        and selected_path.suffix.lower() in {".jpg", ".jpeg"}):
+    st.caption(
+        "💡 JPEG déjà compressé : la chaîne pédagogique repart des pixels bruts et peut "
+        "produire un payload plus gros que le fichier. Pour un vrai gain sans perte, utilise "
+        "« 🔒 Optimiser le JPEG sans perte » dans la section 1."
     )
 
 label_btn = "🚀 Lancer le test" if mode == "Chaîne unique" else "🚀 Lancer le comparatif"
@@ -1698,7 +1968,7 @@ if run_clicked:
             slug = "+".join(chain).replace("é", "e") or "brut"
             suffix = f"_tuiles{tile_size}" if use_tiles else ""
             png_path = COMPRESSED_DIR / f"{selected_path.stem}_reconstructed.png"
-            clab_path = COMPRESSED_DIR / f"{selected_path.stem}_{slug}{suffix}.clab"
+            payload_path = COMPRESSED_DIR / f"{selected_path.stem}_{slug}{suffix}.payload"
             started = time.perf_counter()
 
             if use_tiles:
@@ -1708,16 +1978,30 @@ if run_clicked:
                     bar.progress(done / total,
                                  text=f"Tuile {done:,} / {total:,} — écoulé {elapsed:.0f} s, restant ≈ {eta:.0f} s")
 
-                res = compress_tiled(original_array, selected_stages, entropy_name,
-                                     tile_size, clab_path, progress=on_progress)
+                res = compress_tiled(
+                    original_array, selected_stages, entropy_name, tile_size,
+                    payload_path,
+                    payload_limit=(None if resized else original_file_size),
+                    progress=on_progress,
+                )
                 bar.progress(1.0, text="Enregistrement de l'image reconstruite…")
             else:
                 with st.spinner("Compression puis décompression en cours..."):
                     res = compress_pixels(original_array, selected_stages, entropy_name)
-                clab_path.write_bytes(res["blob"])
+                if res.get("payload_data") is not None:
+                    payload_path.write_bytes(res["payload_data"])
+                    res["payload_path"] = payload_path
+                else:
+                    res["payload_path"] = None
 
             reconstructed = Image.fromarray(res["decoded_array"])
             reconstructed.save(png_path, format="PNG", compress_level=1)
+            # Ne pas encombrer le disque avec une image de vérification plus
+            # grosse que le fichier d'origine (cas typique d'un JPEG).
+            if (not resized and original_file_size
+                    and png_path.stat().st_size >= original_file_size):
+                png_path.unlink(missing_ok=True)
+                png_path = None
             res["total_s"] = time.perf_counter() - started
             if use_tiles:
                 bar.empty()
@@ -1734,11 +2018,27 @@ if run_clicked:
                 "preview_original": preview_array,
                 "preview_rebuilt": np.asarray(preview_rebuilt),
                 "png_path": png_path,
-                "clab_path": clab_path,
+                "payload_path": res.get("payload_path"),
+                "original_path": selected_path,
+                "stem": selected_path.stem,
                 "matrix_limit": matrix_limit,
                 "resized": resized,
                 "original_file_size": original_file_size,
+                "payload_oversized": False,
             })
+            # Ne jamais laisser un « fichier compressé » plus gros que l'original :
+            # sur un JPEG déjà compressé, le payload pédagogique peut dépasser le
+            # fichier source. On le supprime et on l'explique dans l'interface.
+            if (not resized
+                    and int(res.get("payload_bytes", 0)) >= int(original_file_size or 0) > 0):
+                if res.get("payload_path") is not None:
+                    try:
+                        Path(res["payload_path"]).unlink(missing_ok=True)
+                    except OSError:
+                        pass
+                res["payload_path"] = None
+                res["payload_data"] = None
+                res["payload_oversized"] = True
             st.session_state["result"] = {"signature": signature, "kind": "single", "data": res}
         else:
             if not compare_stages:
@@ -1779,4 +2079,7 @@ if stored is not None:
         st.info("La configuration a changé depuis le dernier test : relance-le pour mettre les résultats à jour.")
 
 st.divider()
-st.caption("Image Compression Lab — réutilise directement les fonctions de compress_lab.py.")
+st.caption(
+    "Compression Lab — images via compress_lab.py, textes via le moteur Rust "
+    "sans perte, audio via FLAC et archivage exact `.rlab`."
+)
